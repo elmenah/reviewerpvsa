@@ -1,0 +1,33 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-gray-50 text-gray-800 font-sans;
+  }
+}
+
+@layer components {
+  .drop-zone {
+    @apply border-2 border-dashed border-gray-300 rounded-xl p-6 text-center cursor-pointer
+           transition-all duration-200 bg-white hover:border-pvsa-blue hover:bg-pvsa-light/30;
+  }
+  .drop-zone.active {
+    @apply border-pvsa-blue bg-pvsa-light/50 scale-[1.02];
+  }
+  .drop-zone.has-file {
+    @apply border-pvsa-blue bg-pvsa-light/20;
+  }
+  .btn-primary {
+    @apply bg-pvsa-navy text-white font-semibold px-8 py-3 rounded-lg
+           hover:bg-pvsa-blue transition-colors duration-200 disabled:opacity-40
+           disabled:cursor-not-allowed flex items-center gap-2;
+  }
+  .badge-nc {
+    @apply inline-block px-2 py-0.5 rounded text-xs font-bold bg-red-100 text-pvsa-red border border-red-200;
+  }
+  .badge-obs {
+    @apply inline-block px-2 py-0.5 rounded text-xs font-bold bg-orange-100 text-pvsa-orange border border-orange-200;
+  }
+}
