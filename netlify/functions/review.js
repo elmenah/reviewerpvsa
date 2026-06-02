@@ -4,12 +4,27 @@ const SYSTEM_PROMPT = `Eres un revisor especializado en Seguridad, Salud Ocupaci
 
 Tu tarea es revisar procedimientos de trabajo y matrices SSO/MA de empresas contratistas contra las normas PVSA que se te entregan.
 
-REGLAS ESTRICTAS:
-1. SOLO reporta hallazgos que estén directamente sustentados en las reglas PVSA entregadas.
-2. NO inventes normas, NO uses conocimiento general de seguridad que no esté en las reglas.
-3. Si una regla no aplica al documento revisado, NO la reportes.
-4. Distingue entre NC (incumplimiento directo, claro) y OBS (omisión, ambigüedad o mejora necesaria).
-5. Sé específico: describe QUÉ falta o está mal, no solo que "no cumple".
+REGLAS DE EVALUACIÓN:
+1. SOLO reporta hallazgos sustentados en las reglas PVSA entregadas. No uses conocimiento externo.
+2. Si una regla no aplica al documento, NO la reportes.
+3. Distingue claramente entre dos tipos de requisitos:
+
+   A) REQUISITOS TÉCNICOS DE SEGURIDAD (evaluar siempre con rigor):
+      - Clasificación de trabajos en caliente, altura, sustancias peligrosas
+      - EPP específico según HDS, controles de inhalación, ventilación
+      - Permisos de trabajo con tipos correctos (SAFEX)
+      - Clasificación de derrames y residuos peligrosos
+      - Shock absorber, arnés certificado, andamio certificado
+      Estos son NO NEGOCIABLES. Reportar como NC si faltan.
+
+   B) REQUISITOS DE FORMATO / ESTRUCTURA (evaluar con criterio):
+      - Secciones del procedimiento (paso a paso, charla 5 min, normalización, etc.)
+      - Si el contexto adicional indica que el formato fue aprobado por PVSA,
+        o que un requisito se cumple de forma implícita en el documento,
+        NO reportar como NC. A lo sumo reportar como OBS si hay mejora posible.
+
+4. Si el documento menciona algo de forma implícita o equivalente (aunque no use las palabras exactas de la norma), considéralo como cumplido.
+5. Sé específico: describe QUÉ falta y POR QUÉ importa, no solo que "no cumple".
 6. Responde ÚNICAMENTE con JSON válido, sin texto adicional.
 
 FORMATO DE RESPUESTA:
@@ -17,17 +32,21 @@ FORMATO DE RESPUESTA:
   "hallazgos": [
     {
       "tipo": "NC" | "OBS",
-      "descripcion": "Descripción clara y específica del hallazgo, indicando qué dice el documento y qué debería decir según la norma PVSA.",
-      "norma": "Código de la norma PVSA (ej: E-006-PR V12)"
+      "descripcion": "Descripción clara del hallazgo: qué dice (o no dice) el documento y qué requiere la norma PVSA.",
+      "norma": "Código norma PVSA (ej: E-006-PR V12)"
     }
   ]
 }`
 
-function buildUserPrompt(textos, reglas, empresa) {
+function buildUserPrompt(textos, reglas, empresa, contexto) {
   const partes = []
 
   if (empresa) {
     partes.push(`## EMPRESA CONTRATISTA: ${empresa}\n`)
+  }
+
+  if (contexto?.trim()) {
+    partes.push(`## CONTEXTO ADICIONAL DEL REVISOR\n\n${contexto.trim()}\n\nTen en cuenta este contexto al evaluar los requisitos de formato y estructura (punto B de las reglas). Los requisitos técnicos de seguridad siguen siendo NO NEGOCIABLES.`)
   }
 
   if (textos.procedimiento) {
@@ -67,7 +86,7 @@ exports.handler = async function (event) {
     return { statusCode: 400, body: JSON.stringify({ error: 'Request body inválido' }) }
   }
 
-  const { textos, reglas, empresa = '', model = 'gpt-4o' } = body
+  const { textos, reglas, empresa = '', model = 'gpt-4o', contexto = '' } = body
   if (!textos?.procedimiento) {
     return { statusCode: 400, body: JSON.stringify({ error: 'Se requiere al menos el texto del procedimiento' }) }
   }
@@ -84,7 +103,7 @@ exports.handler = async function (event) {
       response_format: { type: 'json_object' },
       messages: [
         { role: 'system', content: SYSTEM_PROMPT },
-        { role: 'user', content: buildUserPrompt(textos, reglas, empresa) },
+        { role: 'user', content: buildUserPrompt(textos, reglas, empresa, contexto) },
       ],
     })
 
