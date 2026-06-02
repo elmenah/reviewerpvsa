@@ -33,7 +33,8 @@ FORMATO DE RESPUESTA:
     {
       "tipo": "NC" | "OBS",
       "descripcion": "Descripción clara del hallazgo: qué dice (o no dice) el documento y qué requiere la norma PVSA.",
-      "norma": "Código norma PVSA (ej: E-006-PR V12)"
+      "norma": "Código norma PVSA (ej: E-006-PR V12)",
+      "cita": "Texto literal extraído del documento analizado donde se detecta el problema o la ausencia. Si el requisito está completamente ausente del documento, escribe exactamente: (No encontrado en el documento). Máximo 200 caracteres."
     }
   ]
 }`

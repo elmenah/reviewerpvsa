@@ -1,7 +1,20 @@
+import { useState } from 'react'
+import { findRule } from '../lib/ruleSearch.js'
+import RuleModal from './RuleModal.jsx'
+
+const ABSENT = '(No encontrado en el documento)'
+
 export default function ResultsTable({ results, tiposDetectados, onDownload, model }) {
   const { hallazgos = [] } = results
   const nc = hallazgos.filter(h => h.tipo === 'NC').length
   const obs = hallazgos.filter(h => h.tipo === 'OBS').length
+
+  const [selectedRule, setSelectedRule] = useState(null)
+
+  function handleNormaClick(norma) {
+    const rule = findRule(norma)
+    if (rule) setSelectedRule(rule)
+  }
 
   return (
     <div className="mt-8 space-y-4">
@@ -61,31 +74,80 @@ export default function ResultsTable({ results, tiposDetectados, onDownload, mod
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-pvsa-navy text-white">
-                <th className="px-4 py-3 text-left w-20">N°</th>
+                <th className="px-4 py-3 text-left w-12">N°</th>
                 <th className="px-4 py-3 text-left w-20">Tipo</th>
                 <th className="px-4 py-3 text-left">Descripción del Hallazgo</th>
-                <th className="px-4 py-3 text-left w-44">Norma PVSA</th>
+                <th className="px-4 py-3 text-left w-44">
+                  Norma PVSA
+                  <span className="block text-xs font-normal text-blue-200 leading-tight">
+                    clic para ver extracto
+                  </span>
+                </th>
               </tr>
             </thead>
             <tbody>
-              {hallazgos.map((h, i) => (
-                <tr
-                  key={i}
-                  className={`border-t border-gray-100 ${h.tipo === 'NC' ? 'bg-red-50/40' : 'bg-orange-50/30'}`}
-                >
-                  <td className="px-4 py-3 font-mono text-xs text-gray-500">
-                    {String(i + 1).padStart(2, '0')}
-                  </td>
-                  <td className="px-4 py-3">
-                    {h.tipo === 'NC'
-                      ? <span className="badge-nc">NC</span>
-                      : <span className="badge-obs">OBS</span>
-                    }
-                  </td>
-                  <td className="px-4 py-3 text-gray-700">{h.descripcion}</td>
-                  <td className="px-4 py-3 text-pvsa-navy font-medium text-xs">{h.norma}</td>
-                </tr>
-              ))}
+              {hallazgos.map((h, i) => {
+                const hasRule = !!findRule(h.norma)
+                const citaAusente = !h.cita || h.cita === ABSENT
+                return (
+                  <tr
+                    key={i}
+                    className={`border-t border-gray-100 ${h.tipo === 'NC' ? 'bg-red-50/40' : 'bg-orange-50/30'}`}
+                  >
+                    {/* N° */}
+                    <td className="px-4 py-3 font-mono text-xs text-gray-400 align-top">
+                      {String(i + 1).padStart(2, '0')}
+                    </td>
+
+                    {/* Tipo */}
+                    <td className="px-4 py-3 align-top">
+                      {h.tipo === 'NC'
+                        ? <span className="badge-nc">NC</span>
+                        : <span className="badge-obs">OBS</span>
+                      }
+                    </td>
+
+                    {/* Descripción + cita */}
+                    <td className="px-4 py-3 text-gray-700 align-top">
+                      <p className="leading-snug">{h.descripcion}</p>
+                      {h.cita && (
+                        citaAusente ? (
+                          <p className="mt-1.5 text-xs italic text-gray-400 flex items-center gap-1">
+                            <svg className="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                d="M21 21l-4.35-4.35M17 11A6 6 0 115 11a6 6 0 0112 0z" />
+                            </svg>
+                            No encontrado en el documento
+                          </p>
+                        ) : (
+                          <blockquote className="mt-1.5 border-l-4 border-gray-300 pl-2 text-xs text-gray-500 italic leading-snug">
+                            "{h.cita}"
+                          </blockquote>
+                        )
+                      )}
+                    </td>
+
+                    {/* Norma — clickable if we have the rule */}
+                    <td className="px-4 py-3 align-top">
+                      {hasRule ? (
+                        <button
+                          onClick={() => handleNormaClick(h.norma)}
+                          className="text-pvsa-navy font-medium text-xs hover:text-pvsa-blue hover:underline flex items-center gap-1 group text-left"
+                          title="Ver extracto de la norma PVSA"
+                        >
+                          <span>{h.norma}</span>
+                          <svg className="w-3 h-3 text-gray-400 group-hover:text-pvsa-blue shrink-0 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                              d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                          </svg>
+                        </button>
+                      ) : (
+                        <span className="text-pvsa-navy font-medium text-xs">{h.norma}</span>
+                      )}
+                    </td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         </div>
@@ -105,6 +167,11 @@ export default function ResultsTable({ results, tiposDetectados, onDownload, mod
           </span>
         )}
       </p>
+
+      {/* Rule modal */}
+      {selectedRule && (
+        <RuleModal rule={selectedRule} onClose={() => setSelectedRule(null)} />
+      )}
     </div>
   )
 }
