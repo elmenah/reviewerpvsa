@@ -5,49 +5,55 @@ const SYSTEM_PROMPT = `Eres un revisor especializado en Seguridad, Salud Ocupaci
 Tu tarea es revisar procedimientos de trabajo y matrices SSO/MA de empresas contratistas contra las normas PVSA que se te entregan.
 
 REGLAS DE EVALUACIÓN:
-1. SOLO reporta hallazgos sustentados en las reglas PVSA entregadas. No uses conocimiento externo.
-2. Si una regla no aplica al documento, NO la reportes.
-3. Distingue claramente entre dos tipos de requisitos:
 
-   A) REQUISITOS TÉCNICOS DE SEGURIDAD (evaluar siempre con rigor):
-      - Clasificación de trabajos en caliente, altura, sustancias peligrosas
-      - EPP específico según HDS, controles de inhalación, ventilación
-      - Permisos de trabajo con tipos correctos (SAFEX)
-      - Clasificación de derrames y residuos peligrosos
-      - Shock absorber, arnés certificado, andamio certificado
-      Estos son NO NEGOCIABLES. Reportar como NC si faltan.
+1. SOLO reporta hallazgos sustentados en las normas PVSA entregadas. No uses conocimiento externo ni apliques otras normativas.
 
-   B) REQUISITOS DE FORMATO / ESTRUCTURA (evaluar con criterio):
-      - Secciones del procedimiento (paso a paso, charla 5 min, normalización, etc.)
-      - Si el contexto adicional indica que el formato fue aprobado por PVSA,
-        o que un requisito se cumple de forma implícita en el documento,
-        NO reportar como NC. A lo sumo reportar como OBS si hay mejora posible.
+2. Si una regla no aplica al tipo de trabajo del documento, NO la reportes.
 
-4. Si el documento menciona algo de forma implícita o equivalente (aunque no use las palabras exactas de la norma), considéralo como cumplido.
-5. Sé específico: describe QUÉ falta y POR QUÉ importa, no solo que "no cumple".
-6. Responde ÚNICAMENTE con JSON válido, sin texto adicional.
+3. REQUISITOS TÉCNICOS DE SEGURIDAD — evalúa con MÁXIMO RIGOR:
+   Estos son los únicos que generan NC. Son no negociables:
+   - Clasificación correcta del tipo de trabajo (caliente, altura, sustancias peligrosas)
+   - EPP específico según HDS, controles de inhalación, ventilación forzada
+   - Permisos de trabajo con tipos correctos (plataforma SAFEX)
+   - Shock absorber en trabajos de altura >5 m; arnés de cuerpo completo certificado
+   - Andamio certificado Tipo Layher con tarjeta de habilitación
+   - Clasificación de derrames (Muy Significativo) y residuos peligrosos
+   - Vigilante de fuego con dedicación exclusiva y 60 min post-trabajo
+   Reportar como NC si alguno de estos está ausente o incorrecto.
+
+4. REQUISITOS DE FORMATO Y ESTRUCTURA — evalúa con criterio FLEXIBLE:
+   Los procedimientos de contratistas tienen formatos propios aprobados por PVSA.
+   Por defecto, NO reportes como NC cuestiones de formato o estructura documental, tales como:
+   - Si el procedimiento tiene o no sección explícita de "paso a paso"
+   - Si la charla de 5 minutos tiene sección propia o se menciona dentro del texto
+   - Si hay o no sección de normalización, alcance, objetivo, etc.
+   - Numeración de pasos, encabezados, tablas vs. texto corrido
+   Solo reporta OBS (nunca NC) si la ausencia de estructura genera ambigüedad real
+   sobre cómo ejecutar el trabajo de forma segura.
+
+5. Si el documento menciona un requisito de forma implícita o con palabras distintas a las de la norma, considéralo CUMPLIDO.
+
+6. No reportes lo que está bien. Solo reporta hallazgos reales (NC u OBS).
+
+7. Responde ÚNICAMENTE con JSON válido, sin texto adicional.
 
 FORMATO DE RESPUESTA:
 {
   "hallazgos": [
     {
       "tipo": "NC" | "OBS",
-      "descripcion": "Descripción clara del hallazgo: qué dice (o no dice) el documento y qué requiere la norma PVSA.",
+      "descripcion": "Descripción clara: qué dice (o no dice) el documento y qué requiere la norma PVSA.",
       "norma": "Código norma PVSA (ej: E-006-PR V12)",
-      "cita": "Texto literal extraído del documento analizado donde se detecta el problema o la ausencia. Si el requisito está completamente ausente del documento, escribe exactamente: (No encontrado en el documento). Máximo 200 caracteres."
+      "cita": "Texto literal del documento donde se detecta el problema, o '(No encontrado en el documento)' si el requisito está completamente ausente. Máximo 200 caracteres."
     }
   ]
 }`
 
-function buildUserPrompt(textos, reglas, empresa, contexto) {
+function buildUserPrompt(textos, reglas, empresa) {
   const partes = []
 
   if (empresa) {
     partes.push(`## EMPRESA CONTRATISTA: ${empresa}\n`)
-  }
-
-  if (contexto?.trim()) {
-    partes.push(`## CONTEXTO ADICIONAL DEL REVISOR\n\n${contexto.trim()}\n\nTen en cuenta este contexto al evaluar los requisitos de formato y estructura (punto B de las reglas). Los requisitos técnicos de seguridad siguen siendo NO NEGOCIABLES.`)
   }
 
   if (textos.procedimiento) {
@@ -62,7 +68,7 @@ function buildUserPrompt(textos, reglas, empresa, contexto) {
 
   partes.push(`## NORMAS PVSA APLICABLES\n\n${reglas}`)
 
-  partes.push(`## INSTRUCCIÓN\nRevisa TODOS los documentos anteriores contra las normas PVSA entregadas. Reporta cada hallazgo con tipo (NC u OBS), descripción específica y la norma PVSA que lo sustenta. Responde solo con JSON válido.`)
+  partes.push(`## INSTRUCCIÓN\nRevisa TODOS los documentos anteriores contra las normas PVSA entregadas. Reporta cada hallazgo con tipo (NC u OBS), descripción específica, la norma que lo sustenta y la cita del documento. Responde solo con JSON válido.`)
 
   return partes.join('\n\n---\n\n')
 }
@@ -87,7 +93,7 @@ exports.handler = async function (event) {
     return { statusCode: 400, body: JSON.stringify({ error: 'Request body inválido' }) }
   }
 
-  const { textos, reglas, empresa = '', model = 'gpt-4o', contexto = '' } = body
+  const { textos, reglas, empresa = '', model = 'gpt-4o' } = body
   if (!textos?.procedimiento) {
     return { statusCode: 400, body: JSON.stringify({ error: 'Se requiere al menos el texto del procedimiento' }) }
   }
@@ -104,7 +110,7 @@ exports.handler = async function (event) {
       response_format: { type: 'json_object' },
       messages: [
         { role: 'system', content: SYSTEM_PROMPT },
-        { role: 'user', content: buildUserPrompt(textos, reglas, empresa, contexto) },
+        { role: 'user', content: buildUserPrompt(textos, reglas, empresa) },
       ],
     })
 

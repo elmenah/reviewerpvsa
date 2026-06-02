@@ -36,7 +36,6 @@ export default function App() {
   const [error, setError] = useState(null)
   const [empresa, setEmpresa] = useState('')
   const [model, setModel] = useState('gpt-4o')
-  const [contexto, setContexto] = useState('')
 
   function handleFile(key, file) {
     setFiles(prev => ({ ...prev, [key]: file }))
@@ -72,7 +71,7 @@ export default function App() {
       const response = await fetch('/api/review', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ textos, reglas, empresa, model, contexto }),
+        body: JSON.stringify({ textos, reglas, empresa, model }),
       })
 
       if (!response.ok) {
@@ -125,35 +124,6 @@ export default function App() {
             onChange={e => setEmpresa(e.target.value)}
             className="w-full max-w-sm border border-gray-300 rounded-lg px-3 py-2 text-sm
                        focus:outline-none focus:ring-2 focus:ring-pvsa-blue focus:border-transparent"
-          />
-        </div>
-
-        {/* Context / notes field */}
-        <div className="bg-amber-50 border border-amber-200 rounded-xl p-5">
-          <label className="block text-sm font-semibold text-amber-800 mb-1 flex items-center gap-2">
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            Contexto adicional para la revisión (opcional)
-          </label>
-          <p className="text-xs text-amber-600 mb-2">
-            Indica aquí si hay requisitos de formato ya aprobados por PVSA, excepciones conocidas o
-            cualquier contexto que el revisor deba considerar. Los requisitos técnicos de seguridad
-            siempre se evalúan con rigor.
-          </p>
-          <textarea
-            rows={3}
-            placeholder={
-              'Ej: "El formato del procedimiento ha sido aprobado por la prevencionista. ' +
-              'No requieren paso a paso explícito ni sección separada de charla de 5 min. ' +
-              'Sí se menciona la charla dentro del texto del procedimiento."'
-            }
-            value={contexto}
-            onChange={e => setContexto(e.target.value)}
-            className="w-full border border-amber-300 rounded-lg px-3 py-2 text-sm bg-white
-                       focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent
-                       placeholder:text-gray-300 resize-none"
           />
         </div>
 
